@@ -31,5 +31,9 @@ def userForm():
 
     separator = customtkinter.CTkFrame(master=panel, width=300, height=4, corner_radius=0, fg_color='#FFFFFF')
     separator.place(x=25, y=205)
+
+    login_btn = customtkinter.CTkButton(master=panel, width=300, height=45, text="Login", fg_color='#279EFF', corner_radius=13, border_width=0)
+    login_btn.place(x=25,y=230)
+
     root.mainloop()
 userForm()
