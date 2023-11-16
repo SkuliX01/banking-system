@@ -5,39 +5,131 @@ from tkinter import messagebox
 import arrow
 
 Client = MongoClient("connection string")
-Database = Client['Db name']
+Database = Client['db name']
 Clients_Collection = Database['Collection name']
-
+Transactions_Collection = Database['Collection name']
 def UserDashboard():
 
     def upadteTime():
         today_date_label.configure(text=f"today is : {arrow.now().format('DD/MM/YYYY HH:mm')}")
-        today_date_label.after(45000, upadteTime)
+        today_date_label.after(25000, upadteTime)
     def fetchUpdate():
+        global fetchuser
         fetchuser = Clients_Collection.find_one({'Username': fetch_users['Username']})
         saving_bal = fetchuser['Savings']
         spending_bal = fetchuser['Balance']
         spending_balance.configure(text=f'{spending_bal} $')
         savings_balance.configure(text=f'{saving_bal} $')
-        spending_balance.after(60000, fetchUpdate)
-        savings_balance.after(60000, fetchUpdate)
+        spending_balance.after(30000, fetchUpdate)
+        savings_balance.after(30000, fetchUpdate)
         spending_lenght = len(str(spending_bal))
         savings_lenght = len(str(saving_bal))
         if spending_lenght > 6 or savings_lenght > 6:
-            spending_balance.place(x=95, y=31)
-            savings_balance.place(x=395, y=31)
+            spending_balance.place(x=105, y=31)
+            savings_balance.place(x=400, y=31)
         else:
             spending_balance.place(x=105, y=31)
             savings_balance.place(x=405, y=31)
+    def sendTransfer():
+        reciver = userName.get()
+        transferamount = amount.get()
+        sender = fetchuser
+        sender_balance = sender['Balance']
+        check_reciver = Clients_Collection.find_one({'Username': reciver})
+        if check_reciver:
+            reciver_balance = check_reciver['Balance']
+            if float(transferamount) > float(sender_balance):
+                messagebox.showerror(title="Error", message="Insufficient Balance!")
+            else:
+                time = arrow.now().format('DD/MM/YY HH:mm:ss')
+                Clients_Collection.update_one({"Username": sender['Username']},{"$set": {"Balance": float(sender_balance) - float(transferamount)}})
+                Clients_Collection.update_one({'Username': reciver}, {"$set": {'Balance': float(reciver_balance) + float(transferamount)}})
+                Transactions_Collection.insert_one({'From': sender['Username'], 'To': reciver, "Amount": transferamount, 'Timestamp': time, 'Type': "Transfer"})
+                messagebox.showinfo(title="Success", message=f"Successfully sent : {transferamount} $ to  {reciver}")
+        else:
+            messagebox.showwarning(title="Warning!", message="Reciver Not found")
     def Transfer():
+        global userName
+        global amount
         window = customtkinter.CTkToplevel()
         window.focus_get()
-        window.geometry('300x250')
+        window.geometry('400x350')
         window.resizable(False, False)
+        window.title("Transfer")
+        userName = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Username")
+        userName.place(x=70,y=30)
+        amount = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount")
+        amount.place(x=70,y=85)
+        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Send Transfer", command=sendTransfer)
+        transferBTN.place(x=70, y=145)
+        window.focus_set()
+        window.grab_set()
     def Withdraw():
         pass
-    def SendSavings():
-        pass
+    def sendSavings():
+        sender = fetchuser
+        time = arrow.now().format('DD/MM/YY HH:mm:ss')
+        sender_saving_bal = sender['Savings']
+        sender_spending_bal = sender['Balance']
+        get_amount = internaltransfer.get()
+        if float(get_amount) > sender_spending_bal:
+            messagebox.showerror(title='Error', message="Insufficient Balance!")
+        else:
+            hash_user = hashlib.sha384(sender['Username'].encode('utf-8')).hexdigest()
+            Clients_Collection.update_one({'Username': sender['Username']}, {"$set": {'Savings': float(sender_saving_bal) + float(get_amount)}})
+            Clients_Collection.update_one({'Username': sender['Username']}, {'$set': {'Balance': float(sender_spending_bal) - float(get_amount)}})
+            Transactions_Collection.insert_one({'Username': hash_user, 'Amount': float(get_amount), 'Type': "Internal Transfer", 'Timestamp': time})
+            messagebox.showinfo(title="Success", message=f"Successfully sended {get_amount} $ to savings")
+    def sendSpending():
+        sender = fetchuser
+        time = arrow.now().format('DD/MM/YY HH:mm:ss')
+        sender_saving_bal = sender['Savings']
+        sender_spending_bal = sender['Balance']
+        get_amount = internaltransfer.get()
+        if float(get_amount) > sender_spending_bal:
+            messagebox.showerror(title='Error', message="Insufficient Balance!")
+        else:
+            hash_user = hashlib.sha384(sender['Username'].encode('utf-8')).hexdigest()
+            Clients_Collection.update_one({'Username': sender['Username']}, {"$set": {'Balance': float(sender_spending_bal) + float(get_amount)}})
+            Clients_Collection.update_one({'Username': sender['Username']}, {'$set': {'Savings': float(sender_saving_bal) - float(get_amount)}})
+            Transactions_Collection.insert_one({'Username': hash_user, 'Amount': float(get_amount), 'Type': "Internal Transfer", 'Timestamp': time})
+            messagebox.showinfo(title="Success", message=f"Successfully sended {get_amount} $ to spending")
+    def Savings():
+        global userName
+        global internaltransfer
+        window = customtkinter.CTkToplevel()
+        window.focus_get()
+        window.geometry('400x350')
+        window.resizable(False, False)
+        window.title("Savings")
+        label = customtkinter.CTkLabel(master=window, text="Send to Savings")
+        label.place(x=155, y=60)
+        internaltransfer = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount")
+        internaltransfer.place(x=70,y=85)
+        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Send to Savings", command=sendSavings)
+        transferBTN.place(x=70, y=145)
+        window.focus_set()
+        window.grab_set()
+    
+    def Spending():
+        global userName
+        global internaltransfer
+        window = customtkinter.CTkToplevel()
+        window.focus_get()
+        window.geometry('400x350')
+        window.resizable(False, False)
+        window.title("Spending")
+        label = customtkinter.CTkLabel(master=window, text="Send to Spending")
+        label.place(x=155, y=60)
+        internaltransfer = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount")
+        internaltransfer.place(x=70,y=85)
+        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Send to Spending", command=sendSpending)
+        transferBTN.place(x=70, y=145)
+        window.focus_set()
+        window.grab_set()
+    def logout():
+        app.destroy()
+    global app
     root.destroy()
     app = customtkinter.CTk(fg_color="#191919")
     app.geometry('690x500')
@@ -69,10 +161,10 @@ def UserDashboard():
     savings_label.place(x=400, y=5)
 
     spending_balance = customtkinter.CTkLabel(master=second_top_panel, font=('Arial', 16), fg_color='#242424', bg_color='#242424')
-    spending_balance.place(x=105, y=31)
+    spending_balance.place(x=1150, y=31)
 
     savings_balance = customtkinter.CTkLabel(master=second_top_panel, font=('Arial', 16), fg_color='#242424', bg_color='#242424')
-    savings_balance.place(x=405, y=31)
+    savings_balance.place(x=410, y=31)
 
     transferBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Transfer", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0, command=Transfer)
     transferBTN.place(x=7,y=100)
@@ -80,9 +172,15 @@ def UserDashboard():
     withdrawBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Withdraw", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0,)
     withdrawBTN.place(x=7,y=150)
 
-    savingsBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Send to savings", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0,)
+    savingsBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Send to savings", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0,command=Savings)
     savingsBTN.place(x=7,y=200)
+
+    normalBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Send to Spending", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0,command=Spending, font=('Arial', 11))
+    normalBTN.place(x=7,y=250)
     
+    LogouytBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Logout", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0, command=logout)
+    LogouytBTN.place(x=7,y=335)
+
     app.after(0, fetchUpdate)
     app.after(0, upadteTime)
     app.mainloop()
