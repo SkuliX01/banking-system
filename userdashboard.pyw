@@ -2,10 +2,49 @@ import customtkinter
 from pymongo import *
 import hashlib
 from tkinter import messagebox
+import arrow
 
-Client = MongoClient("connection string")
-Database = Client['Your database name']
-Clients_Collection = Database['your collection Name']
+Client = MongoClient("")
+Database = Client['']
+Clients_Collection = Database['']
+
+def UserDashboard():
+
+    def upadteTime():
+        today_date_label.configure(text=f"today is : {arrow.now().format('DD/MM/YYYY HH:mm')}")
+        today_date_label.after(45000, upadteTime)
+    root.destroy()
+    app = customtkinter.CTk(fg_color="#191919")
+    app.geometry('690x500')
+    app.title('User Dashboard')
+    app.resizable(False, False)
+
+    top_panel = customtkinter.CTkFrame(master=app, width=680, height=95, corner_radius=10, fg_color='#242424')
+    top_panel.place(x=5, y=5)
+
+    user_label = customtkinter.CTkLabel(master=top_panel, text=f'Welcome back :  {fetch_users["Username"]}!', font=('Arial', 25), fg_color='#242424', bg_color='#242424')
+    user_label.place(x=10, y=10)
+    today_date = arrow.now().format('DD/MM/YYYY HH:mm')
+    today_date_label = customtkinter.CTkLabel(master=top_panel, text=f"today is : {today_date}", font=('Arial', 15), fg_color='#242424', bg_color='#242424')
+    today_date_label.place(x=10, y=35)
+
+    vertical_panel = customtkinter.CTkFrame(master=app,width=125, height=385, corner_radius=10, fg_color='#242424')
+    vertical_panel.place(x=5, y=105)
+
+    second_top_panel = customtkinter.CTkFrame(master=app, width=550, height=75, corner_radius=10, fg_color='#242424')
+    second_top_panel.place(x=135, y=105)
+
+    second_top_panel_divider = customtkinter.CTkFrame(master=second_top_panel, width=4, height=65, corner_radius=0, fg_color='#FFFFFF')
+    second_top_panel_divider.place(x=275, y=5)
+
+    spending_label = customtkinter.CTkLabel(master=second_top_panel, text='Spending', font=('Arial', 15), fg_color='#242424', bg_color='#242424')
+    spending_label.place(x=95, y=2)
+
+    savings_label = customtkinter.CTkLabel(master=second_top_panel, text="Savings", font=('Arial', 15), fg_color='#242424', bg_color='#242424')
+    savings_label.place(x=400, y=2)
+
+    app.after(0, upadteTime)
+    app.mainloop()
 
 def userForm():
 
@@ -60,8 +99,22 @@ def switch_to_login():
     not_usr_btn.configure(command=switch_to_register)
     login_btn.configure(command=Login)
 def Login():
+    global fetch_users
     get_username = user_name.get()
     get_password = user_password.get()
+    if get_username == "" or get_password == "":
+        messagebox.showerror(title="Error", message="Fill all fields!")
+    else:
+        fetch_users = Clients_Collection.find_one({'Username': get_username})
+        if fetch_users:
+            hash_password = hashlib.sha512(get_password.encode('utf-8')).hexdigest()
+            if hash_password == fetch_users['Password']:
+                messagebox.showinfo(title='Success', message='Successfully Logged in!')
+                UserDashboard()
+            else:
+                messagebox.showerror(title='Error', message='Wrong Password!')
+        else:
+            messagebox.showerror(title='Error', message='User not found!')
 def Register():
     get_username = user_name.get()
     get_password = user_password.get()
@@ -73,6 +126,6 @@ def Register():
         if fetch_users:
             messagebox.showerror(title="error", message="User already registred!")
         else:
-            Clients_Collection.insert_one({'Username': get_username, 'Password': hash_password, 'Balance': 0.00, 'Privilege': 'user'})
+            Clients_Collection.insert_one({'Username': get_username, 'Password': hash_password, 'Balance': 0.00,'Savings': 0.00, 'Privilege': 'user'})
             messagebox.showinfo(title='Success', message='Successfully Registered account!')
 userForm()
