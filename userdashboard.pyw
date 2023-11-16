@@ -4,15 +4,40 @@ import hashlib
 from tkinter import messagebox
 import arrow
 
-Client = MongoClient("")
-Database = Client['']
-Clients_Collection = Database['']
+Client = MongoClient("connection string")
+Database = Client['Db name']
+Clients_Collection = Database['Collection name']
 
 def UserDashboard():
 
     def upadteTime():
         today_date_label.configure(text=f"today is : {arrow.now().format('DD/MM/YYYY HH:mm')}")
         today_date_label.after(45000, upadteTime)
+    def fetchUpdate():
+        fetchuser = Clients_Collection.find_one({'Username': fetch_users['Username']})
+        saving_bal = fetchuser['Savings']
+        spending_bal = fetchuser['Balance']
+        spending_balance.configure(text=f'{spending_bal} $')
+        savings_balance.configure(text=f'{saving_bal} $')
+        spending_balance.after(60000, fetchUpdate)
+        savings_balance.after(60000, fetchUpdate)
+        spending_lenght = len(str(spending_bal))
+        savings_lenght = len(str(saving_bal))
+        if spending_lenght > 6 or savings_lenght > 6:
+            spending_balance.place(x=95, y=31)
+            savings_balance.place(x=395, y=31)
+        else:
+            spending_balance.place(x=105, y=31)
+            savings_balance.place(x=405, y=31)
+    def Transfer():
+        window = customtkinter.CTkToplevel()
+        window.focus_get()
+        window.geometry('300x250')
+        window.resizable(False, False)
+    def Withdraw():
+        pass
+    def SendSavings():
+        pass
     root.destroy()
     app = customtkinter.CTk(fg_color="#191919")
     app.geometry('690x500')
@@ -37,12 +62,28 @@ def UserDashboard():
     second_top_panel_divider = customtkinter.CTkFrame(master=second_top_panel, width=4, height=65, corner_radius=0, fg_color='#FFFFFF')
     second_top_panel_divider.place(x=275, y=5)
 
-    spending_label = customtkinter.CTkLabel(master=second_top_panel, text='Spending', font=('Arial', 15), fg_color='#242424', bg_color='#242424')
-    spending_label.place(x=95, y=2)
+    spending_label = customtkinter.CTkLabel(master=second_top_panel, text='Spending', font=('Arial', 16), fg_color='#242424', bg_color='#242424')
+    spending_label.place(x=100, y=5)
 
-    savings_label = customtkinter.CTkLabel(master=second_top_panel, text="Savings", font=('Arial', 15), fg_color='#242424', bg_color='#242424')
-    savings_label.place(x=400, y=2)
+    savings_label = customtkinter.CTkLabel(master=second_top_panel, text='Savings', font=('Arial', 16), fg_color='#242424', bg_color='#242424')
+    savings_label.place(x=400, y=5)
 
+    spending_balance = customtkinter.CTkLabel(master=second_top_panel, font=('Arial', 16), fg_color='#242424', bg_color='#242424')
+    spending_balance.place(x=105, y=31)
+
+    savings_balance = customtkinter.CTkLabel(master=second_top_panel, font=('Arial', 16), fg_color='#242424', bg_color='#242424')
+    savings_balance.place(x=405, y=31)
+
+    transferBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Transfer", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0, command=Transfer)
+    transferBTN.place(x=7,y=100)
+
+    withdrawBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Withdraw", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0,)
+    withdrawBTN.place(x=7,y=150)
+
+    savingsBTN = customtkinter.CTkButton(master=vertical_panel, width=113, height=40, text="Send to savings", bg_color='#242424',fg_color="#279EFF", corner_radius=10, border_width=0,)
+    savingsBTN.place(x=7,y=200)
+    
+    app.after(0, fetchUpdate)
     app.after(0, upadteTime)
     app.mainloop()
 
