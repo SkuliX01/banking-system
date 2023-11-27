@@ -11,8 +11,8 @@ load_dotenv()
 connection_string = os.getenv('MONGO_CONNECTION_STRING')
 Database_Name = os.getenv('MONGO_DATABASE_NAME')
 
-Client = MongoClient(connection_string)
-Database = Client[Database_Name]
+Client = MongoClient(str(connection_string))
+Database = Client[str(Database_Name)]
 Clients_Collection = Database['Clients']
 Transactions_Collection = Database['Transactions']
 def UserDashboard():
