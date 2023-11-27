@@ -1,14 +1,20 @@
 import customtkinter
 from pymongo import *
+import pymongo
 import hashlib
 from tkinter import messagebox
-import tkinter
+import os
+from dotenv import load_dotenv
 import arrow
 
-Client = MongoClient("")
-Database = Client['']
-Clients_Collection = Database['']
-Transactions_Collection = Database['']
+load_dotenv()
+connection_string = os.getenv('MONGO_CONNECTION_STRING')
+Database_Name = os.getenv('MONGO_DATABASE_NAME')
+
+Client = MongoClient(connection_string)
+Database = Client[Database_Name]
+Clients_Collection = Database['Clients']
+Transactions_Collection = Database['Transactions']
 def UserDashboard():
 
     def upadteTime():
@@ -40,26 +46,48 @@ def UserDashboard():
             "$or": [
                 {'From': fetchuser['Username']},
                 {'To': fetchuser['Username']},
+                {'Username': fetchuser['Username']}
             ]
-        })
+        }).sort('Timestamp', pymongo.DESCENDING)
         for document in cursor:
-            transation = customtkinter.CTkFrame(master=transactionsFrame, width=480, height=150, corner_radius=11, fg_color="#279EFF")
-            transation.pack(pady=5)
-            tittle = customtkinter.CTkLabel(master=transation,text=f"Tittle : {document['Title']}")
-            tittle.place(x=10,y=10)
-            message = customtkinter.CTkLabel(master=transation,text=f"Description : {document['Description']}")
-            message.place(x=10,y=30)
-            sender = customtkinter.CTkLabel(master=transation, text=f"Sender : {document['From']}")
-            sender.place(x=10,y=50)
-            reciver = customtkinter.CTkLabel(master=transation, text=f"Reciver : {document['To']}")
-            reciver.place(x=10, y=70)
-            amount = customtkinter.CTkLabel(master=transation, text=f"Amount : {document['Amount']}")
-            amount.place(x=10, y=90)
-            date = customtkinter.CTkLabel(master=transation, text=f"Date : {document['Timestamp']}")
-            date.place(x=325, y=115)
-            type = customtkinter.CTkLabel(master=transation, text=f"Type : {document['Type']}")
-            type.place(x=10, y=110)
-            transactionsFrame.after(35000, loadTransactions)
+            if document['Type'] == "Internal Transfer":
+                transationPrivate = customtkinter.CTkFrame(master=transactionsFrame, width=480, height=80, corner_radius=11, fg_color="#279EFF")
+                transationPrivate.pack(pady=5)
+                Type = customtkinter.CTkLabel(master=transationPrivate, text=f"Title : {document['Type']}")
+                Type.place(x=10, y=5)
+                amount = customtkinter.CTkLabel(master=transationPrivate, text=f"Amount : {document['Amount']} $")
+                amount.place(x=10,y=25)
+                timestamp = customtkinter.CTkLabel(master=transationPrivate, text=f"Date : {document['Timestamp']}")
+                timestamp.place(x=10, y=45)
+
+            elif document['Type'] == "Transfer":
+                transation = customtkinter.CTkFrame(master=transactionsFrame, width=480, height=160, corner_radius=11, fg_color="#279EFF")
+                transation.pack(pady=5)
+                tittle = customtkinter.CTkLabel(master=transation,text=f"Tittle : {document['Title']}")
+                tittle.place(x=10,y=10)
+                message = customtkinter.CTkLabel(master=transation,text=f"Description : {document['Description']}")
+                message.place(x=10,y=30)
+                sender = customtkinter.CTkLabel(master=transation, text=f"Sender : {document['From']}")
+                sender.place(x=10,y=50)
+                reciver = customtkinter.CTkLabel(master=transation, text=f"Reciver : {document['To']}")
+                reciver.place(x=10, y=70)
+                amount = customtkinter.CTkLabel(master=transation, text=f"Amount : {document['Amount']} $")
+                amount.place(x=10, y=90)
+                date = customtkinter.CTkLabel(master=transation, text=f"Date : {document['Timestamp']}")
+                date.place(x=10, y=130)
+                type = customtkinter.CTkLabel(master=transation, text=f"Type : {document['Type']}")
+                type.place(x=10, y=110)
+            elif document['Type'] == "Withdraw":
+                withdrawTransaction = customtkinter.CTkFrame(master=transactionsFrame, width=480, height=80, corner_radius=11, fg_color="#279EFF")
+                withdrawTransaction.pack(pady=5)
+                type = customtkinter.CTkLabel(master=withdrawTransaction, text=f"Type : {document['Type']}")
+                type.place(x=10, y=10)
+                amount = customtkinter.CTkLabel(master=withdrawTransaction, text=f"Amount : {document['Amount']} $")
+                amount.place(x=10, y=30)
+                date = customtkinter.CTkLabel(master=withdrawTransaction, text=f"Date : {document['Timestamp']}")
+                date.place(x=10, y=50)
+                transactionsFrame.after(35000, loadTransactions)
+
     def sendTransfer():
         reciver = userName.get()
         transferamount = amount.get()
@@ -78,6 +106,7 @@ def UserDashboard():
                 Clients_Collection.update_one({'Username': reciver}, {"$set": {'Balance': float(reciver_balance) + float(transferamount)}})
                 Transactions_Collection.insert_one({'Title': transferTitle,'From': sender['Username'], 'To': reciver, "Amount": transferamount,'Description': transferDescription, 'Timestamp': time, 'Type': "Transfer"})
                 messagebox.showinfo(title="Success", message=f"Successfully sent : {transferamount} $ to  {reciver}")
+                windowTransfer.after(6500, windowTransfer.destroy())
         else:
             messagebox.showwarning(title="Warning!", message="Reciver Not found")
     def Transfer():
@@ -85,23 +114,24 @@ def UserDashboard():
         global amount
         global title
         global description
-        window = customtkinter.CTkToplevel()
-        window.focus_get()
-        window.geometry('400x350')
-        window.resizable(False, False)
-        window.title("Transfer")
-        userName = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Username", corner_radius=10)
+        global windowTransfer
+        windowTransfer = customtkinter.CTkToplevel()
+        windowTransfer.focus_get()
+        windowTransfer.geometry('400x350')
+        windowTransfer.resizable(False, False)
+        windowTransfer.title("Transfer")
+        userName = customtkinter.CTkEntry(master=windowTransfer, width=250, height=40, placeholder_text="Username", corner_radius=10)
         userName.place(x=70,y=60)
-        amount = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount", corner_radius=10)
+        amount = customtkinter.CTkEntry(master=windowTransfer, width=250, height=40, placeholder_text="Amount", corner_radius=10)
         amount.place(x=70,y=105)
-        title =customtkinter.CTkEntry(master=window, width=250, height=40, corner_radius=10, placeholder_text="Title")
+        title =customtkinter.CTkEntry(master=windowTransfer, width=250, height=40, corner_radius=10, placeholder_text="Title")
         title.place(x=70, y=15)
-        description = customtkinter.CTkEntry(master=window, width=250, height=40, corner_radius=10, placeholder_text="Description")
+        description = customtkinter.CTkEntry(master=windowTransfer, width=250, height=40, corner_radius=10, placeholder_text="Description")
         description.place(x=70, y=150)
-        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Send Transfer", command=sendTransfer)
+        transferBTN = customtkinter.CTkButton(master=windowTransfer, width=250, height=40, text="Send Transfer", command=sendTransfer)
         transferBTN.place(x=70, y=195)
-        window.focus_set()
-        window.grab_set()
+        windowTransfer.focus_set()
+        windowTransfer.grab_set()
     def commitWithdraw():
         user = fetchuser
         time = arrow.now().format('DD/MM/YY HH:mm:ss')
@@ -113,21 +143,23 @@ def UserDashboard():
             messagebox.showinfo(title="Success!", message=f"Successfully withdrawed {withdrawalamount} $ from spending")
             Clients_Collection.update_one({'Username': user['Username']}, {'$set': {'Balance': float(user_balance) - float(withdrawalamount)}})
             Transactions_Collection.insert_one({'Username': user['Username'], 'Amount': float(withdrawalamount), 'Type': 'Withdraw', 'Timestamp': time})
+            windowWithdraw.after(6500, windowWithdraw.destroy())
     def Withdraw():
         global withdraw
-        window = customtkinter.CTkToplevel()
-        window.focus_get()
-        window.geometry('400x350')
-        window.resizable(False, False)
-        window.title("Withdraw")
-        label = customtkinter.CTkLabel(master=window, text="Withdraw")
+        global windowWithdraw
+        windowWithdraw = customtkinter.CTkToplevel()
+        windowWithdraw.focus_get()
+        windowWithdraw.geometry('400x350')
+        windowWithdraw.resizable(False, False)
+        windowWithdraw.title("Withdraw")
+        label = customtkinter.CTkLabel(master=windowWithdraw, text="Withdraw")
         label.place(x=155, y=60)
-        withdraw = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount")
+        withdraw = customtkinter.CTkEntry(master=windowWithdraw, width=250, height=40, placeholder_text="Amount")
         withdraw.place(x=70,y=85)
-        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Withdraw", command=commitWithdraw)
+        transferBTN = customtkinter.CTkButton(master=windowWithdraw, width=250, height=40, text="Withdraw", command=commitWithdraw)
         transferBTN.place(x=70, y=145)
-        window.focus_set()
-        window.grab_set()
+        windowWithdraw.focus_set()
+        windowWithdraw.grab_set()
     def sendSavings():
         sender = fetchuser
         time = arrow.now().format('DD/MM/YY HH:mm:ss')
@@ -141,6 +173,7 @@ def UserDashboard():
             Clients_Collection.update_one({'Username': sender['Username']}, {'$set': {'Balance': float(sender_spending_bal) - float(get_amount)}})
             Transactions_Collection.insert_one({'Username': sender['Username'], 'Amount': float(get_amount), 'Type': "Internal Transfer", 'Timestamp': time})
             messagebox.showinfo(title="Success", message=f"Successfully sended {get_amount} $ to savings")
+            windowSavings.after(6500, windowSavings.destroy())
     def sendSpending():
         sender = fetchuser
         time = arrow.now().format('DD/MM/YY HH:mm:ss')
@@ -154,39 +187,42 @@ def UserDashboard():
             Clients_Collection.update_one({'Username': sender['Username']}, {'$set': {'Savings': float(sender_saving_bal) - float(get_amount)}})
             Transactions_Collection.insert_one({'Username': sender['Username'], 'Amount': float(get_amount), 'Type': "Internal Transfer", 'Timestamp': time})
             messagebox.showinfo(title="Success", message=f"Successfully sended {get_amount} $ to spending")
+            windowSpending.after(6500, windowSpending.destroy())
     def Savings():
         global userName
         global internaltransfer
-        window = customtkinter.CTkToplevel()
-        window.focus_get()
-        window.geometry('400x350')
-        window.resizable(False, False)
-        window.title("Savings")
-        label = customtkinter.CTkLabel(master=window, text="Send to Savings")
+        global windowSavings
+        windowSavings = customtkinter.CTkToplevel()
+        windowSavings.focus_get()
+        windowSavings.geometry('400x350')
+        windowSavings.resizable(False, False)
+        windowSavings.title("Savings")
+        label = customtkinter.CTkLabel(master=windowSavings, text="Send to Savings")
         label.place(x=155, y=60)
-        internaltransfer = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount")
+        internaltransfer = customtkinter.CTkEntry(master=windowSavings, width=250, height=40, placeholder_text="Amount")
         internaltransfer.place(x=70,y=85)
-        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Send to Savings", command=sendSavings)
+        transferBTN = customtkinter.CTkButton(master=windowSavings, width=250, height=40, text="Send to Savings", command=sendSavings)
         transferBTN.place(x=70, y=145)
-        window.focus_set()
-        window.grab_set()
+        windowSavings.focus_set()
+        windowSavings.grab_set()
     
     def Spending():
         global userName
         global internaltransfer
-        window = customtkinter.CTkToplevel()
-        window.focus_get()
-        window.geometry('400x350')
-        window.resizable(False, False)
-        window.title("Spending")
-        label = customtkinter.CTkLabel(master=window, text="Send to Spending")
+        global windowSpending
+        windowSpending = customtkinter.CTkToplevel()
+        windowSpending.focus_get()
+        windowSpending.geometry('400x350')
+        windowSpending.resizable(False, False)
+        windowSpending.title("Spending")
+        label = customtkinter.CTkLabel(master=windowSpending, text="Send to Spending")
         label.place(x=155, y=60)
-        internaltransfer = customtkinter.CTkEntry(master=window, width=250, height=40, placeholder_text="Amount")
+        internaltransfer = customtkinter.CTkEntry(master=windowSpending, width=250, height=40, placeholder_text="Amount")
         internaltransfer.place(x=70,y=85)
-        transferBTN = customtkinter.CTkButton(master=window, width=250, height=40, text="Send to Spending", command=sendSpending)
+        transferBTN = customtkinter.CTkButton(master=windowSpending, width=250, height=40, text="Send to Spending", command=sendSpending)
         transferBTN.place(x=70, y=145)
-        window.focus_set()
-        window.grab_set()
+        windowSpending.focus_set()
+        windowSpending.grab_set()
     def logout():
         app.destroy()
     global app
@@ -249,8 +285,16 @@ def UserDashboard():
     app.after(0, loadTransactions)
     app.mainloop()
 
+def showPassword():
+    showPasswordbutton.configure(text=u'\u20dd')
+    showPasswordbutton.configure(command=hidePassword)
+    user_password.configure(show="")
+def hidePassword():
+    showPasswordbutton.configure(text=u"\u2349")
+    showPasswordbutton.configure(command=showPassword)
+    user_password.configure(show="*")
 def userForm():
-
+    global showPasswordbutton
     global root
     global login_btn
     global not_usr_btn
@@ -286,6 +330,9 @@ def userForm():
 
     login_btn = customtkinter.CTkButton(master=panel, width=300, height=45, text="Login", fg_color='#279EFF', corner_radius=13, border_width=0, command=Login)
     login_btn.place(x=25,y=230)
+
+    showPasswordbutton = customtkinter.CTkButton(master=panel, width=10, height=25, text=u'\u20dd', command=showPassword,fg_color='#279EFF')
+    showPasswordbutton.place(x=325,y=120)
 
     root.mainloop()
 def switch_to_register():
